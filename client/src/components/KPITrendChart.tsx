@@ -72,3 +72,4 @@ export default function KPITrendChart() {
   };
 
   return <Bar data={chartData} options={options} />;
+}

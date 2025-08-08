@@ -22,7 +22,7 @@ export interface ProcessStep {
 
 export interface ProcessAction {
   type: 'manual' | 'api' | 'email' | 'approval' | 'calculation';
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
 }
 

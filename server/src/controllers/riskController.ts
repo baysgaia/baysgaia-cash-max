@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 
 const riskService = new RiskManagementService();
 
-export const getAllRisks = async (req: Request, res: Response, next: NextFunction) => {
+export const getAllRisks = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const risks = await riskService.getAllRisks();
     res.json({
@@ -18,7 +18,7 @@ export const getAllRisks = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-export const getRiskMatrix = async (req: Request, res: Response, next: NextFunction) => {
+export const getRiskMatrix = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const matrix = await riskService.getRiskMatrix();
     res.json({
@@ -32,7 +32,7 @@ export const getRiskMatrix = async (req: Request, res: Response, next: NextFunct
   }
 };
 
-export const getActiveAlerts = async (req: Request, res: Response, next: NextFunction) => {
+export const getActiveAlerts = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const alerts = await riskService.getActiveAlerts();
     res.json({
@@ -51,20 +51,27 @@ export const updateRiskAssessment = async (req: Request, res: Response, next: Ne
     const { id } = req.params;
     const { impact, probability } = req.body;
     
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Risk ID is required'
+      });
+    }
+    
     const updatedRisk = await riskService.updateRiskAssessment(id, impact, probability);
     
-    res.json({
+    return res.json({
       success: true,
       data: updatedRisk,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Failed to update risk assessment', error);
-    next(error);
+    return next(error);
   }
 };
 
-export const getGovernancePolicies = async (req: Request, res: Response, next: NextFunction) => {
+export const getGovernancePolicies = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const policies = await riskService.getGovernancePolicies();
     res.json({
@@ -78,7 +85,7 @@ export const getGovernancePolicies = async (req: Request, res: Response, next: N
   }
 };
 
-export const getComplianceStatus = async (req: Request, res: Response, next: NextFunction) => {
+export const getComplianceStatus = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const status = await riskService.getComplianceStatus();
     res.json({
@@ -92,7 +99,7 @@ export const getComplianceStatus = async (req: Request, res: Response, next: Nex
   }
 };
 
-export const generateRiskReport = async (req: Request, res: Response, next: NextFunction) => {
+export const generateRiskReport = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const report = await riskService.generateRiskReport();
     res.json({

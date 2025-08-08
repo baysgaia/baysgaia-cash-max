@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 
 const bankAPI = new GMOAozoraAPIService();
 
-export const getAccountBalance = async (req: Request, res: Response, next: NextFunction) => {
+export const getAccountBalance = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const balance = await bankAPI.getAccountBalance();
     res.json({

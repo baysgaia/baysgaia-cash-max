@@ -25,7 +25,7 @@ export async function getCashflowData(period: 'daily' | 'weekly'): Promise<Cashf
       const outflow = Math.random() * 1500000 + 800000;
       
       mockData.push({
-        date: date.toISOString().split('T')[0],
+        date: date.toISOString().split('T')[0] || date.toISOString(),
         inflow,
         outflow,
         netFlow: inflow - outflow,

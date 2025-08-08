@@ -47,8 +47,8 @@ export default function CashFlow() {
         </div>
         <div className="metric-card border-success-500">
           <h3 className="text-sm font-medium text-gray-600">純増減</h3>
-          <p className={`text-2xl font-bold ${dailyCashflow?.netFlow >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-            {dailyCashflow?.netFlow >= 0 ? '+' : ''}¥{dailyCashflow?.netFlow.toLocaleString()}
+          <p className={`text-2xl font-bold ${(dailyCashflow?.netFlow ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+            {(dailyCashflow?.netFlow ?? 0) >= 0 ? '+' : ''}¥{(dailyCashflow?.netFlow ?? 0).toLocaleString()}
           </p>
           <p className="text-sm text-gray-500">前日比</p>
         </div>

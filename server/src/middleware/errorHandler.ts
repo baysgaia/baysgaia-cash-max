@@ -10,7 +10,8 @@ export const errorHandler = (
   err: ApiError,
   req: Request,
   res: Response,
-  next: NextFunction
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _next: NextFunction
 ) => {
   logger.error(`Error ${err.statusCode || 500}: ${err.message}`, {
     url: req.url,

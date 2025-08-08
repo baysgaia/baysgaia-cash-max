@@ -84,7 +84,7 @@ export class GMOAozoraAPIService {
     try {
       const mockBalance: AccountBalance = {
         accountId: 'ACC001',
-        accountName: 'ベイスガイア運転資金口座',
+        accountName: 'BAYSGAiA運転資金口座',
         balance: 12345678,
         availableBalance: 12345678,
         currency: 'JPY',
@@ -98,7 +98,9 @@ export class GMOAozoraAPIService {
     }
   }
 
-  async getTransactionHistory(params: {
+  async getTransactionHistory(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _params: {
     dateFrom?: string;
     dateTo?: string;
     limit?: number;

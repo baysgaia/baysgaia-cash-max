@@ -61,3 +61,4 @@ export default function CashflowChart({ data }: CashflowChartProps) {
   };
 
   return <Bar data={chartData} options={options} />;
+}

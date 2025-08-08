@@ -70,3 +70,4 @@ export default function CashBalanceChart() {
   };
 
   return <Line data={chartData} options={options} />;
+}

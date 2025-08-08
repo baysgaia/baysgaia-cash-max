@@ -51,11 +51,11 @@ export default function KPIDetails() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
           <h3 className="text-lg font-semibold mb-4">CCC構成要素推移</h3>
-          <KPIHistoryChart data={history?.ccc} label="CCC" color="rgb(59, 130, 246)" />
+          <KPIHistoryChart data={history?.ccc || []} label="CCC" color="rgb(59, 130, 246)" />
         </div>
         <div className="card">
           <h3 className="text-lg font-semibold mb-4">DSO推移</h3>
-          <KPIHistoryChart data={history?.dso} label="DSO" color="rgb(34, 197, 94)" />
+          <KPIHistoryChart data={history?.dso || []} label="DSO" color="rgb(34, 197, 94)" />
         </div>
       </div>
 

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { getCashflowData } from '../services/cashflowService';
 import { logger } from '../utils/logger';
 
-export const getDailyCashflow = async (req: Request, res: Response, next: NextFunction) => {
+export const getDailyCashflow = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const data = await getCashflowData('daily');
     res.json({
@@ -16,7 +16,7 @@ export const getDailyCashflow = async (req: Request, res: Response, next: NextFu
   }
 };
 
-export const getWeeklyCashflow = async (req: Request, res: Response, next: NextFunction) => {
+export const getWeeklyCashflow = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const data = await getCashflowData('weekly');
     res.json({

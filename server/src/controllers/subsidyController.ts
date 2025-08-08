@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 
 const subsidyService = new SubsidyService();
 
-export const getAllSubsidies = async (req: Request, res: Response, next: NextFunction) => {
+export const getAllSubsidies = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const subsidies = await subsidyService.getAllSubsidies();
     res.json({
@@ -21,6 +21,13 @@ export const getAllSubsidies = async (req: Request, res: Response, next: NextFun
 export const getSubsidyDetails = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Subsidy ID is required'
+      });
+    }
+    
     const subsidy = await subsidyService.getSubsidyById(id);
     
     if (!subsidy) {
@@ -30,14 +37,14 @@ export const getSubsidyDetails = async (req: Request, res: Response, next: NextF
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: subsidy,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Failed to get subsidy details', error);
-    next(error);
+    return next(error);
   }
 };
 
@@ -46,16 +53,23 @@ export const updateSubsidyStatus = async (req: Request, res: Response, next: Nex
     const { id } = req.params;
     const { status } = req.body;
     
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Subsidy ID is required'
+      });
+    }
+    
     const updatedSubsidy = await subsidyService.updateSubsidyStatus(id, status);
     
-    res.json({
+    return res.json({
       success: true,
       data: updatedSubsidy,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Failed to update subsidy status', error);
-    next(error);
+    return next(error);
   }
 };
 
@@ -78,15 +92,23 @@ export const getFundingSimulation = async (req: Request, res: Response, next: Ne
 export const getApplicationChecklist = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Subsidy ID is required'
+      });
+    }
+    
     const checklist = await subsidyService.getApplicationChecklist(id);
     
-    res.json({
+    return res.json({
       success: true,
       data: checklist,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Failed to get application checklist', error);
-    next(error);
+    return next(error);
   }
 };

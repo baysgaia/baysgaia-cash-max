@@ -40,3 +40,4 @@ export default function KPIHistoryChart({ data, label, color }: KPIHistoryChartP
   };
 
   return <Line data={chartData} options={options} />;
+}

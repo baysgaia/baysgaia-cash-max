@@ -1,4 +1,4 @@
-import { Project, Phase, Objective, Milestone, Task, ProjectReport } from '../models/project';
+import { Project, Phase, Objective, Milestone, ProjectReport } from '../models/project';
 import { logger } from '../utils/logger';
 
 export class ProjectManagementService {

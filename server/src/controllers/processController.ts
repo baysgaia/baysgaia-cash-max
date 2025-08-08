@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 
 const processService = new ProcessAutomationService();
 
-export const getAllProcesses = async (req: Request, res: Response, next: NextFunction) => {
+export const getAllProcesses = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const processes = await processService.getAllProcesses();
     res.json({
@@ -21,6 +21,12 @@ export const getAllProcesses = async (req: Request, res: Response, next: NextFun
 export const getProcessDetails = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Process ID is required'
+      });
+    }
     const process = await processService.getProcessById(id);
     
     if (!process) {
@@ -30,18 +36,18 @@ export const getProcessDetails = async (req: Request, res: Response, next: NextF
       });
     }
     
-    res.json({
+    return res.json({
       success: true,
       data: process,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Failed to get process details', error);
-    next(error);
+    return next(error);
   }
 };
 
-export const getAutomationOpportunities = async (req: Request, res: Response, next: NextFunction) => {
+export const getAutomationOpportunities = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const opportunities = await processService.getAutomationOpportunities();
     res.json({
@@ -55,7 +61,7 @@ export const getAutomationOpportunities = async (req: Request, res: Response, ne
   }
 };
 
-export const getAutomationROI = async (req: Request, res: Response, next: NextFunction) => {
+export const getAutomationROI = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const roi = await processService.calculateAutomationROI();
     res.json({
@@ -69,7 +75,7 @@ export const getAutomationROI = async (req: Request, res: Response, next: NextFu
   }
 };
 
-export const getWorkflowTemplates = async (req: Request, res: Response, next: NextFunction) => {
+export const getWorkflowTemplates = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const templates = await processService.getWorkflowTemplates();
     res.json({
@@ -88,15 +94,22 @@ export const applyWorkflowTemplate = async (req: Request, res: Response, next: N
     const { id } = req.params;
     const { templateId } = req.body;
     
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Process ID is required'
+      });
+    }
+    
     const updatedProcess = await processService.applyWorkflowTemplate(id, templateId);
     
-    res.json({
+    return res.json({
       success: true,
       data: updatedProcess,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Failed to apply workflow template', error);
-    next(error);
+    return next(error);
   }
 };

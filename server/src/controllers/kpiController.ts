@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { calculateKPIs } from '../services/kpiService';
 import { logger } from '../utils/logger';
 
-export const getKPIMetrics = async (req: Request, res: Response, next: NextFunction) => {
+export const getKPIMetrics = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const kpis = await calculateKPIs();
     res.json({

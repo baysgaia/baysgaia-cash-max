@@ -27,7 +27,7 @@ export default function Layout({ children }: LayoutProps) {
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
                 <h1 className="text-xl font-bold text-primary-600">
-                  Baysgaia 現金残高最大化
+                  BAYSGAiA 現金残高最大化
                 </h1>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">

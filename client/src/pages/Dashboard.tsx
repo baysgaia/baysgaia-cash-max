@@ -44,25 +44,25 @@ export default function Dashboard() {
           title="現金残高"
           value={`¥${cashBalance?.balance.toLocaleString()}`}
           change={cashBalance?.changePercent}
-          status={cashBalance?.changePercent >= 0 ? 'success' : 'danger'}
+          status={(cashBalance?.changePercent ?? 0) >= 0 ? 'success' : 'danger'}
         />
         <MetricCard
           title="CCC (日数)"
-          value={kpis?.ccc.toString()}
+          value={(kpis?.ccc ?? 0).toString()}
           target="56"
-          status={kpis?.ccc <= 56 ? 'success' : 'warning'}
+          status={(kpis?.ccc ?? 0) <= 56 ? 'success' : 'warning'}
         />
         <MetricCard
           title="DSO (日数)"
-          value={kpis?.dso.toString()}
+          value={(kpis?.dso ?? 0).toString()}
           target="45"
-          status={kpis?.dso <= 45 ? 'success' : 'warning'}
+          status={(kpis?.dso ?? 0) <= 45 ? 'success' : 'warning'}
         />
         <MetricCard
           title="資金予測精度"
-          value={`${kpis?.forecastAccuracy}%`}
+          value={`${kpis?.forecastAccuracy ?? 0}%`}
           target="95%"
-          status={kpis?.forecastAccuracy >= 95 ? 'success' : 'warning'}
+          status={(kpis?.forecastAccuracy ?? 0) >= 95 ? 'success' : 'warning'}
         />
       </div>
 

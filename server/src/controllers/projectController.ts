@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 
 const projectService = new ProjectManagementService();
 
-export const getProject = async (req: Request, res: Response, next: NextFunction) => {
+export const getProject = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const project = await projectService.getProject();
     res.json({
@@ -18,7 +18,7 @@ export const getProject = async (req: Request, res: Response, next: NextFunction
   }
 };
 
-export const getAllPhases = async (req: Request, res: Response, next: NextFunction) => {
+export const getAllPhases = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const phases = await projectService.getAllPhases();
     res.json({
@@ -32,7 +32,7 @@ export const getAllPhases = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-export const getCurrentPhase = async (req: Request, res: Response, next: NextFunction) => {
+export const getCurrentPhase = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const phase = await projectService.getCurrentPhase();
     res.json({
@@ -51,20 +51,27 @@ export const updateObjectiveProgress = async (req: Request, res: Response, next:
     const { id } = req.params;
     const { currentValue } = req.body;
     
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Objective ID is required'
+      });
+    }
+    
     const updatedObjective = await projectService.updateObjectiveProgress(id, currentValue);
     
-    res.json({
+    return res.json({
       success: true,
       data: updatedObjective,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     logger.error('Failed to update objective progress', error);
-    next(error);
+    return next(error);
   }
 };
 
-export const getProjectTimeline = async (req: Request, res: Response, next: NextFunction) => {
+export const getProjectTimeline = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const timeline = await projectService.getProjectTimeline();
     res.json({
@@ -78,7 +85,7 @@ export const getProjectTimeline = async (req: Request, res: Response, next: Next
   }
 };
 
-export const generateProjectReport = async (req: Request, res: Response, next: NextFunction) => {
+export const generateProjectReport = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const report = await projectService.generateProjectReport();
     res.json({
@@ -92,7 +99,7 @@ export const generateProjectReport = async (req: Request, res: Response, next: N
   }
 };
 
-export const getGanttChartData = async (req: Request, res: Response, next: NextFunction) => {
+export const getGanttChartData = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const ganttData = await projectService.getGanttChartData();
     res.json({
