@@ -2,64 +2,34 @@
 
 ## 概要
 
-BAYSGAiA財務改革システムのデプロイメント手順と環境構成を定義します。開発環境から本番環境まで、安全で効率的なデプロイプロセスを確立します。
+BAYSGAiA財務改革システムのFlutterアプリケーションのデプロイメント手順と環境構成を定義します。クロスプラットフォーム対応により、Web、iOS、Android、デスクトップ環境へのデプロイを実現します。
 
 ## 環境構成
 
 ### 環境一覧
 
-| 環境 | 用途 | URL | 特徴 |
-|------|------|-----|------|
-| 開発（dev） | 開発・テスト | http://localhost:3000 | モックデータ使用 |
-| ステージング（stg） | 受入テスト | https://stg.cashflow.baysgaia.com | 本番同等構成 |
-| 本番（prod） | 本番運用 | https://cashflow.baysgaia.com | 高可用性構成 |
+| 環境 | プラットフォーム | URL/配布方法 | 特徴 |
+|------|-----------------|--------------|------|
+| 開発 | Web | http://localhost:8080 | ホットリロード対応 |
+| ステージング | Web | https://stg.cashflow.baysgaia.com | 本番同等構成 |
+| 本番 | Web | https://cashflow.baysgaia.com | CDN配信 |
+| 本番 | iOS | TestFlight/App Store | Face ID対応 |
+| 本番 | Android | Google Play | 指紋認証対応 |
 
-### インフラ構成
+### Flutter環境要件
 
 ```yaml
-# docker-compose.yml (開発環境)
-version: '3.8'
-services:
-  backend:
-    build: ./server
-    ports:
-      - "5000:5000"
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:password@db:5432/baysgaia
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - ./server:/app
-      - /app/node_modules
+# pubspec.yaml
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
 
-  frontend:
-    build: ./client
-    ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_API_URL=http://localhost:5000
-    volumes:
-      - ./client:/app
-      - /app/node_modules
-
-  db:
-    image: postgres:15
-    environment:
-      - POSTGRES_DB=baysgaia
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-volumes:
-  postgres_data:
+# FVM設定（Flutter Version Management）
+# .fvm/fvm_config.json
+{
+  "flutterSdkVersion": "3.16.0",
+  "flavors": {}
+}
 ```
 
 ## ビルドプロセス
@@ -67,8 +37,8 @@ volumes:
 ### 自動ビルドパイプライン
 
 ```yaml
-# .github/workflows/build.yml
-name: Build and Test
+# .github/workflows/flutter-build.yml
+name: Flutter Build and Test
 
 on:
   push:
@@ -82,481 +52,521 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          node-version: '18'
+          flutter-version: '3.16.0'
+          channel: 'stable'
           
       - name: Install dependencies
-        run: npm run install:all
+        run: flutter pub get
         
-      - name: Run linter
-        run: npm run lint
-        
-      - name: Run type check
-        run: npm run typecheck
+      - name: Run analyzer
+        run: flutter analyze
         
       - name: Run tests
-        run: npm test
+        run: flutter test --coverage
         
-      - name: Build application
-        run: npm run build
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: coverage/lcov.info
 
-  security-scan:
+  build-web:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       
-      - name: Run security audit
-        run: npm audit --production
-        
-      - name: Run vulnerability scan
-        uses: aquasecurity/trivy-action@master
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
+          flutter-version: '3.16.0'
+          
+      - name: Build Web
+        run: |
+          flutter build web --release \
+            --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }} \
+            --dart-define=GMO_API_URL=${{ secrets.GMO_API_URL }}
+            
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: web-build
+          path: build/web/
+
+  build-mobile:
+    needs: test
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+        include:
+          - os: macos-latest
+            platform: ios
+          - os: ubuntu-latest
+            platform: android
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          
+      - name: Build ${{ matrix.platform }}
+        run: flutter build ${{ matrix.platform }} --release
 ```
 
-### ビルド手順
+### プラットフォーム別ビルド
 
+#### Web版ビルド
 ```bash
-# 1. 依存関係のインストール
-npm run install:all
+# 開発ビルド
+flutter build web --profile \
+  --dart-define=ENVIRONMENT=development
 
-# 2. 環境変数の設定
-cp .env.example .env.production
-# 本番用の値を設定
+# 本番ビルド（最適化）
+flutter build web --release \
+  --dart-define=ENVIRONMENT=production \
+  --web-renderer canvaskit \
+  --tree-shake-icons
 
-# 3. ビルド実行
-npm run build
+# PWA対応
+flutter build web --release --pwa-strategy=offline-first
+```
 
-# 4. ビルド成果物の確認
-ls -la server/dist/
-ls -la client/dist/
+#### iOS版ビルド
+```bash
+# TestFlight用ビルド
+flutter build ios --release \
+  --dart-define=ENVIRONMENT=production
+
+# App Store用アーカイブ
+flutter build ipa --release \
+  --export-options-plist=ios/ExportOptions.plist
+```
+
+#### Android版ビルド
+```bash
+# APKビルド
+flutter build apk --release \
+  --dart-define=ENVIRONMENT=production \
+  --split-per-abi
+
+# App Bundle（推奨）
+flutter build appbundle --release \
+  --dart-define=ENVIRONMENT=production
 ```
 
 ## 環境設定
 
 ### 環境変数管理
 
-```typescript
-// config/index.ts
-interface Config {
-  env: 'development' | 'staging' | 'production';
-  api: {
-    port: number;
-    baseUrl: string;
-  };
-  database: {
-    url: string;
-    ssl: boolean;
-  };
-  gmoAozora: {
-    clientId: string;
-    clientSecret: string;
-    apiUrl: string;
-  };
-  security: {
-    jwtSecret: string;
-    bcryptRounds: number;
-  };
-  monitoring: {
-    sentryDsn?: string;
-    logLevel: string;
-  };
+```dart
+// lib/core/config/environment.dart
+abstract class Environment {
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:5000',
+  );
+  
+  static const String gmoApiUrl = String.fromEnvironment(
+    'GMO_API_URL',
+    defaultValue: 'https://sandbox.gmo-aozora.com',
+  );
+  
+  static const String environment = String.fromEnvironment(
+    'ENVIRONMENT',
+    defaultValue: 'development',
+  );
+  
+  static bool get isProduction => environment == 'production';
+  static bool get isDevelopment => environment == 'development';
+  static bool get isStaging => environment == 'staging';
 }
-
-const config: Config = {
-  env: process.env.NODE_ENV as any || 'development',
-  api: {
-    port: parseInt(process.env.PORT || '5000'),
-    baseUrl: process.env.API_BASE_URL || 'http://localhost:5000'
-  },
-  database: {
-    url: process.env.DATABASE_URL || '',
-    ssl: process.env.NODE_ENV === 'production'
-  },
-  gmoAozora: {
-    clientId: process.env.GMO_AOZORA_CLIENT_ID || '',
-    clientSecret: process.env.GMO_AOZORA_CLIENT_SECRET || '',
-    apiUrl: process.env.GMO_AOZORA_API_URL || ''
-  },
-  security: {
-    jwtSecret: process.env.JWT_SECRET || '',
-    bcryptRounds: 10
-  },
-  monitoring: {
-    sentryDsn: process.env.SENTRY_DSN,
-    logLevel: process.env.LOG_LEVEL || 'info'
-  }
-};
-
-export default config;
 ```
 
-### シークレット管理
+### セキュアストレージ
 
-```bash
-# AWS Secrets Manager (本番環境)
-aws secretsmanager create-secret \
-  --name baysgaia/production/api \
-  --secret-string '{
-    "GMO_AOZORA_CLIENT_SECRET": "xxx",
-    "DATABASE_PASSWORD": "xxx",
-    "JWT_SECRET": "xxx"
-  }'
-
-# Kubernetes Secrets
-kubectl create secret generic baysgaia-secrets \
-  --from-literal=gmo-aozora-secret=$GMO_AOZORA_CLIENT_SECRET \
-  --from-literal=db-password=$DATABASE_PASSWORD \
-  --from-literal=jwt-secret=$JWT_SECRET
+```dart
+// lib/core/services/secure_config_service.dart
+class SecureConfigService {
+  static const _storage = FlutterSecureStorage();
+  
+  // API認証情報の保存
+  static Future<void> saveApiCredentials({
+    required String clientId,
+    required String clientSecret,
+  }) async {
+    await _storage.write(key: 'gmo_client_id', value: clientId);
+    await _storage.write(key: 'gmo_client_secret', value: clientSecret);
+  }
+  
+  // 生体認証設定
+  static Future<void> enableBiometrics() async {
+    final localAuth = LocalAuthentication();
+    final isAvailable = await localAuth.canCheckBiometrics;
+    
+    if (isAvailable) {
+      await _storage.write(
+        key: 'biometrics_enabled',
+        value: 'true',
+        aOptions: const AndroidOptions(
+          encryptedSharedPreferences: true,
+        ),
+        iOptions: const IOSOptions(
+          accessibility: IOSAccessibility.unlocked_this_device,
+        ),
+      );
+    }
+  }
+}
 ```
 
 ## デプロイメント手順
 
-### Phase 2: 基本デプロイ（現在）
+### Web版デプロイ（Firebase Hosting）
 
 ```bash
 #!/bin/bash
-# deploy.sh
+# deploy-web.sh
 
 # 1. ビルド
-echo "Building application..."
-npm run build
+echo "Building Flutter Web..."
+flutter build web --release \
+  --dart-define=ENVIRONMENT=production
 
-# 2. テスト実行
-echo "Running tests..."
-npm test
+# 2. 最適化
+echo "Optimizing assets..."
+# 画像圧縮
+find build/web/assets -name "*.png" -exec pngquant --ext .png --force {} \;
+find build/web/assets -name "*.jpg" -exec jpegoptim -m85 {} \;
 
-# 3. サーバーへの転送
-echo "Deploying to server..."
-rsync -avz --delete \
-  --exclude 'node_modules' \
-  --exclude '.env' \
-  ./server/dist/ user@server:/var/www/baysgaia-api/
+# 3. デプロイ
+echo "Deploying to Firebase..."
+firebase deploy --only hosting:production
 
-rsync -avz --delete \
-  ./client/dist/ user@server:/var/www/baysgaia-frontend/
-
-# 4. サービス再起動
-ssh user@server "sudo systemctl restart baysgaia-api"
-ssh user@server "sudo nginx -s reload"
+# 4. CDNキャッシュクリア
+echo "Purging CDN cache..."
+curl -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/purge_cache" \
+  -H "Authorization: Bearer $CF_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data '{"purge_everything":true}'
 
 echo "Deployment completed!"
 ```
 
-### Phase 3: CI/CDパイプライン（計画中）
+### iOS版デプロイ（TestFlight）
 
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy to Production
+```bash
+#!/bin/bash
+# deploy-ios.sh
 
-on:
-  push:
-    branches: [main]
-    
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Build Docker images
-        run: |
-          docker build -t baysgaia/backend:${{ github.sha }} ./server
-          docker build -t baysgaia/frontend:${{ github.sha }} ./client
-          
-      - name: Push to registry
-        run: |
-          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-          docker push baysgaia/backend:${{ github.sha }}
-          docker push baysgaia/frontend:${{ github.sha }}
-          
-      - name: Deploy to Kubernetes
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-        run: |
-          echo "$KUBE_CONFIG" | base64 -d > kubeconfig
-          export KUBECONFIG=kubeconfig
-          kubectl set image deployment/backend backend=baysgaia/backend:${{ github.sha }}
-          kubectl set image deployment/frontend frontend=baysgaia/frontend:${{ github.sha }}
-          kubectl rollout status deployment/backend
-          kubectl rollout status deployment/frontend
+# 1. 証明書設定
+echo "Setting up certificates..."
+fastlane match appstore
+
+# 2. ビルド番号更新
+BUILD_NUMBER=$(date +%Y%m%d%H%M)
+flutter pub run flutter_launcher_icons:main
+flutter build ios --release --build-number=$BUILD_NUMBER
+
+# 3. アーカイブとアップロード
+cd ios
+fastlane beta
 ```
 
-## モニタリング
+### Android版デプロイ（Google Play）
 
-### ヘルスチェック
+```bash
+#!/bin/bash
+# deploy-android.sh
 
-```typescript
-// server/src/routes/health.ts
-app.get('/health', async (req, res) => {
-  const health = {
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    checks: {
-      database: await checkDatabase(),
-      redis: await checkRedis(),
-      gmoApi: await checkGMOAPI()
+# 1. 署名設定
+echo "Configuring signing..."
+cp $KEYSTORE_FILE android/app/keystore.jks
+
+# 2. バージョン更新
+VERSION_CODE=$(date +%Y%m%d%H)
+flutter build appbundle --release \
+  --build-number=$VERSION_CODE
+
+# 3. Play Consoleへアップロード
+cd android
+fastlane deploy
+```
+
+## プラットフォーム別設定
+
+### Web設定
+
+```html
+<!-- web/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="BAYSGAiA財務改革システム">
+  
+  <!-- PWA設定 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2196F3">
+  
+  <!-- iOS設定 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="BAYSGAiA">
+  
+  <title>BAYSGAiA財務改革システム</title>
+  <link rel="icon" type="image/png" href="favicon.png"/>
+</head>
+<body>
+  <script>
+    // サービスワーカー登録
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('flutter-first-frame', function () {
+        navigator.serviceWorker.register('flutter_service_worker.js');
+      });
     }
+  </script>
+  <script src="main.dart.js" type="application/javascript"></script>
+</body>
+</html>
+```
+
+### iOS設定
+
+```xml
+<!-- ios/Runner/Info.plist -->
+<key>NSFaceIDUsageDescription</key>
+<string>Face IDを使用して安全にログインします</string>
+<key>NSCameraUsageDescription</key>
+<string>領収書の撮影に使用します</string>
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>baysgaia</string>
+    </array>
+  </dict>
+</array>
+```
+
+### Android設定
+
+```xml
+<!-- android/app/src/main/AndroidManifest.xml -->
+<uses-permission android:name="android.permission.USE_FINGERPRINT"/>
+<uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+<uses-permission android:name="android.permission.CAMERA"/>
+
+<application>
+  <meta-data
+    android:name="com.google.firebase.messaging.default_notification_icon"
+    android:resource="@drawable/notification_icon" />
+    
+  <!-- Deep Link設定 -->
+  <intent-filter>
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="baysgaia" />
+  </intent-filter>
+</application>
+```
+
+## 監視とログ
+
+### Firebase Crashlytics統合
+
+```dart
+// lib/main.dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Crashlytics初期化
+  await Firebase.initializeApp();
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  
+  // 非同期エラーキャッチ
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
   };
   
-  const isHealthy = Object.values(health.checks).every(check => check.status === 'ok');
-  res.status(isHealthy ? 200 : 503).json(health);
-});
+  runApp(const BaysGaiaApp());
+}
+```
 
-async function checkDatabase(): Promise<HealthCheck> {
-  try {
-    await db.query('SELECT 1');
-    return { status: 'ok', latency: 5 };
-  } catch (error) {
-    return { status: 'error', message: error.message };
+### パフォーマンス監視
+
+```dart
+// lib/core/services/performance_service.dart
+class PerformanceService {
+  static final _performance = FirebasePerformance.instance;
+  
+  // カスタムトレース
+  static Future<T> trace<T>(
+    String name,
+    Future<T> Function() operation,
+  ) async {
+    final trace = _performance.newTrace(name);
+    await trace.start();
+    
+    try {
+      final result = await operation();
+      trace.setMetric('success', 1);
+      return result;
+    } catch (e) {
+      trace.setMetric('error', 1);
+      rethrow;
+    } finally {
+      await trace.stop();
+    }
+  }
+  
+  // HTTPメトリクス
+  static HttpMetric startHttpMetric(String url, HttpMethod method) {
+    return _performance.newHttpMetric(url, method);
   }
 }
 ```
 
-### ログ設定
+## 災害復旧とバックアップ
 
-```typescript
-// server/src/utils/logger.ts
-import winston from 'winston';
+### オフライン対応
 
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.File({ filename: 'error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'combined.log' })
-  ]
-});
-
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.simple()
-  }));
-}
-
-export default logger;
-```
-
-## バックアップとリストア
-
-### 自動バックアップ
-
-```bash
-#!/bin/bash
-# backup.sh
-
-BACKUP_DIR="/backups/$(date +%Y%m%d)"
-mkdir -p $BACKUP_DIR
-
-# データベースバックアップ
-pg_dump $DATABASE_URL | gzip > $BACKUP_DIR/database.sql.gz
-
-# アプリケーションファイル
-tar -czf $BACKUP_DIR/application.tar.gz /var/www/baysgaia-*
-
-# S3へアップロード
-aws s3 sync $BACKUP_DIR s3://baysgaia-backups/$(date +%Y%m%d)/
-
-# 古いバックアップの削除（90日以上）
-find /backups -type d -mtime +90 -exec rm -rf {} \;
-```
-
-### リストア手順
-
-```bash
-#!/bin/bash
-# restore.sh
-
-RESTORE_DATE=$1
-BACKUP_DIR="/backups/$RESTORE_DATE"
-
-# S3からダウンロード
-aws s3 sync s3://baysgaia-backups/$RESTORE_DATE/ $BACKUP_DIR/
-
-# データベースリストア
-gunzip < $BACKUP_DIR/database.sql.gz | psql $DATABASE_URL
-
-# アプリケーションリストア
-tar -xzf $BACKUP_DIR/application.tar.gz -C /
-
-# サービス再起動
-systemctl restart baysgaia-api
-nginx -s reload
-```
-
-## ロールバック手順
-
-### Blue-Greenデプロイメント
-
-```nginx
-# nginx.conf
-upstream backend {
-    server blue.api.baysgaia.com weight=100;
-    server green.api.baysgaia.com weight=0;
-}
-
-# ロールバック時は weight を入れ替え
-```
-
-### Kubernetesロールバック
-
-```bash
-# 直前のバージョンにロールバック
-kubectl rollout undo deployment/backend
-kubectl rollout undo deployment/frontend
-
-# 特定のバージョンにロールバック
-kubectl rollout undo deployment/backend --to-revision=3
-```
-
-## パフォーマンスチューニング
-
-### Node.js設定
-
-```javascript
-// pm2.config.js
-module.exports = {
-  apps: [{
-    name: 'baysgaia-api',
-    script: './dist/index.js',
-    instances: 'max',
-    exec_mode: 'cluster',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 5000
-    },
-    max_memory_restart: '1G',
-    error_file: './logs/err.log',
-    out_file: './logs/out.log',
-    log_file: './logs/combined.log',
-    time: true
-  }]
-};
-```
-
-### Nginx設定
-
-```nginx
-# /etc/nginx/sites-available/baysgaia
-server {
-    listen 80;
-    server_name cashflow.baysgaia.com;
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name cashflow.baysgaia.com;
+```dart
+// lib/core/services/offline_service.dart
+class OfflineService {
+  static final _connectivity = Connectivity();
+  static final _hive = Hive;
+  
+  // オフラインデータ同期
+  static Future<void> syncOfflineData() async {
+    final connectivityResult = await _connectivity.checkConnectivity();
     
-    ssl_certificate /etc/ssl/certs/baysgaia.crt;
-    ssl_certificate_key /etc/ssl/private/baysgaia.key;
-    
-    # セキュリティヘッダー
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Frame-Options "DENY" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    
-    # 静的ファイル
-    location / {
-        root /var/www/baysgaia-frontend;
-        try_files $uri $uri/ /index.html;
-        expires 1d;
-        add_header Cache-Control "public, immutable";
+    if (connectivityResult != ConnectivityResult.none) {
+      final pendingData = await _hive.box('offline_queue').values.toList();
+      
+      for (final data in pendingData) {
+        try {
+          await _uploadData(data);
+          await _hive.box('offline_queue').delete(data.key);
+        } catch (e) {
+          AppLogger.error('オフライン同期エラー', e);
+        }
+      }
     }
-    
-    # API プロキシ
-    location /api {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+  }
 }
 ```
 
-## 災害復旧計画
+### データバックアップ
 
-### RPO/RTO目標
+```dart
+// 自動バックアップ（iCloud/Google Drive）
+class BackupService {
+  // iOS: iCloud
+  static Future<void> backupToICloud() async {
+    if (Platform.isIOS) {
+      final directory = await getApplicationDocumentsDirectory();
+      final backupPath = '${directory.path}/backup';
+      
+      // iCloudコンテナに保存
+      await Process.run('cp', ['-r', backupPath, '~/Library/Mobile Documents/']);
+    }
+  }
+  
+  // Android: Google Drive
+  static Future<void> backupToGoogleDrive() async {
+    if (Platform.isAndroid) {
+      // Google Drive API使用
+      final googleSignIn = GoogleSignIn(scopes: ['drive.file']);
+      final account = await googleSignIn.signIn();
+      // バックアップ処理
+    }
+  }
+}
+```
 
-- **RPO（復旧時点目標）**: 1時間
-- **RTO（復旧時間目標）**: 4時間
+## 段階的ロールアウト
 
-### 復旧手順
+### Feature Flags
 
-1. **障害検知** (15分以内)
-   - 自動監視アラート
-   - CEO/CFO通知
+```dart
+// lib/core/services/feature_flag_service.dart
+class FeatureFlagService {
+  static final _remoteConfig = FirebaseRemoteConfig.instance;
+  
+  static Future<void> initialize() async {
+    await _remoteConfig.setDefaults({
+      'enable_ai_prediction': false,
+      'enable_biometric_auth': true,
+      'max_offline_days': 7,
+    });
+    
+    await _remoteConfig.fetchAndActivate();
+  }
+  
+  static bool get isAiPredictionEnabled =>
+      _remoteConfig.getBool('enable_ai_prediction');
+      
+  static bool get isBiometricAuthEnabled =>
+      _remoteConfig.getBool('enable_biometric_auth');
+}
+```
 
-2. **初期対応** (30分以内)
-   - 障害範囲特定
-   - 緊急対策チーム招集
+### A/Bテスト
 
-3. **復旧作業** (3時間以内)
-   - バックアップからのリストア
-   - サービス再開
-
-4. **事後対応** (24時間以内)
-   - 原因分析
-   - 再発防止策策定
+```dart
+// Firebase A/Bテスト統合
+class ABTestService {
+  static Future<String> getDashboardVariant() async {
+    final variant = await FirebaseRemoteConfig.instance
+        .getString('dashboard_variant');
+    
+    // アナリティクスに記録
+    await FirebaseAnalytics.instance.logEvent(
+      name: 'experiment_exposure',
+      parameters: {
+        'experiment_name': 'dashboard_redesign',
+        'variant': variant,
+      },
+    );
+    
+    return variant;
+  }
+}
+```
 
 ## チェックリスト
 
 ### デプロイ前チェック
-- [ ] 全テスト合格
-- [ ] セキュリティスキャン完了
+- [ ] flutter analyze エラーなし
+- [ ] flutter test 全テスト合格
+- [ ] ビルド番号・バージョン更新
 - [ ] 環境変数設定確認
-- [ ] バックアップ実行
-- [ ] ロールバック手順確認
+- [ ] 証明書・署名設定確認
 
 ### デプロイ後チェック
-- [ ] ヘルスチェック正常
+- [ ] アプリ起動確認
 - [ ] 主要機能動作確認
-- [ ] パフォーマンス確認
-- [ ] ログ出力確認
-- [ ] アラート設定確認
-
-## 実装状況
-
-### Phase 2（現在）
-- ✅ 基本的なデプロイプロセス
-- ✅ 手動デプロイスクリプト
-- 🚀 Dockerコンテナ化
-- 🔄 基本的な監視
-
-### Phase 3（計画中）
-- ⏳ CI/CDパイプライン
-- ⏳ Kubernetesデプロイ
-- ⏳ 自動スケーリング
-- ⏳ Blue-Greenデプロイ
-
-### Phase 4（将来拡張）
-- ⏳ マルチリージョン対応
-- ⏳ グローバルCDN
-- ⏳ エッジコンピューティング
+- [ ] クラッシュレポート確認
+- [ ] パフォーマンスメトリクス確認
+- [ ] ユーザーフィードバック確認
 
 ## サポート情報
 
 ### ドキュメント
-- デプロイメントガイド: `/docs/technical/deployment.md`
-- セキュリティ仕様: `/docs/technical/security.md`
+- Flutter開発ガイド: `/docs/flutter/development-guide.md`
+- アーキテクチャ: `/docs/technical/architecture.md`
 - API仕様: `/docs/api/`
 
-### 連絡先
-- **技術サポート**: support@baysgaia.com
-- **緊急時**: CEO直通（Critical Alert発生時）
-- **プロジェクトオーナー**: CEO 籾倉丸紀
+### トラブルシューティング
+- ビルドエラー: `flutter clean && flutter pub get`
+- 証明書エラー: `fastlane match nuke`
+- キャッシュクリア: `flutter pub cache repair`
