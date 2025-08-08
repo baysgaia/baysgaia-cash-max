@@ -2,6 +2,7 @@ import * as cron from 'node-cron';
 import { logger } from '../utils/logger';
 import { GMOAozoraAPIService } from './gmoAozoraAPIService';
 import { calculateKPIs } from './kpiService';
+import { alertService } from './alertService';
 
 const bankAPI = new GMOAozoraAPIService();
 
@@ -57,8 +58,12 @@ async function updateKPIs() {
   try {
     const kpis = await calculateKPIs();
     logger.info('KPIs updated:', kpis);
+    
+    // KPIアラートチェック
+    await alertService.checkKPIAlerts(kpis);
   } catch (error) {
     logger.error('KPI update failed:', error);
+    await alertService.triggerSystemAlert(error as Error, 'KPI Update');
     throw error;
   }
 }
@@ -66,6 +71,10 @@ async function updateKPIs() {
 async function checkBalanceAlerts() {
   try {
     const balance = await bankAPI.getAccountBalance();
+    const previousBalance = 10000000; // TODO: 前回の残高を保存・取得する仕組みを実装
+    
+    // キャッシュフローアラートチェック
+    await alertService.checkCashFlowAlerts(balance.balance, previousBalance);
     
     if (balance.balance < 5000000) {
       logger.warn('Low balance alert:', balance.balance);
@@ -76,5 +85,6 @@ async function checkBalanceAlerts() {
     }
   } catch (error) {
     logger.error('Balance alert check failed:', error);
+    await alertService.triggerSystemAlert(error as Error, 'Balance Check');
   }
 }

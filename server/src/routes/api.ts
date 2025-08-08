@@ -6,6 +6,7 @@ import subsidyRoutes from './subsidy';
 import processRoutes from './process';
 import riskRoutes from './risk';
 import projectRoutes from './project';
+import alertsRoutes from './alerts';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/subsidy', subsidyRoutes);
 router.use('/process', processRoutes);
 router.use('/risk', riskRoutes);
 router.use('/project', projectRoutes);
+router.use('/alerts', alertsRoutes);
 
 export default router;

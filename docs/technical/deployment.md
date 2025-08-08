@@ -1,204 +1,477 @@
-# デプロイメントガイド
+# デプロイメント仕様書
 
 ## 概要
 
-本ドキュメントでは、BAYSGAiA現金残高最大化システムのデプロイメント手順を説明します。
+BAYSGAiA財務改革システムのデプロイメント手順と環境構成を定義します。開発環境から本番環境まで、安全で効率的なデプロイプロセスを確立します。
 
-## 前提条件
+## 環境構成
 
-- Node.js 18以上がインストールされていること
-- npmまたはyarnが利用可能であること
-- Gitがインストールされていること
-- 本番環境へのアクセス権限があること
+### 環境一覧
 
-## ローカル開発環境
+| 環境 | 用途 | URL | 特徴 |
+|------|------|-----|------|
+| 開発（dev） | 開発・テスト | http://localhost:3000 | モックデータ使用 |
+| ステージング（stg） | 受入テスト | https://stg.cashflow.baysgaia.com | 本番同等構成 |
+| 本番（prod） | 本番運用 | https://cashflow.baysgaia.com | 高可用性構成 |
 
-### セットアップ
+### インフラ構成
+
+```yaml
+# docker-compose.yml (開発環境)
+version: '3.8'
+services:
+  backend:
+    build: ./server
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:password@db:5432/baysgaia
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+
+  frontend:
+    build: ./client
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=baysgaia
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+```
+
+## ビルドプロセス
+
+### 自動ビルドパイプライン
+
+```yaml
+# .github/workflows/build.yml
+name: Build and Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm run install:all
+        
+      - name: Run linter
+        run: npm run lint
+        
+      - name: Run type check
+        run: npm run typecheck
+        
+      - name: Run tests
+        run: npm test
+        
+      - name: Build application
+        run: npm run build
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run security audit
+        run: npm audit --production
+        
+      - name: Run vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+```
+
+### ビルド手順
 
 ```bash
-# リポジトリのクローン
-git clone https://github.com/baysgaia/baysgaia-cash-max.git
-cd baysgaia-cash-max
-
-# 依存関係のインストール
+# 1. 依存関係のインストール
 npm run install:all
 
-# 環境変数の設定
-cp server/.env.example server/.env
-# .envファイルを編集して必要な値を設定
-```
+# 2. 環境変数の設定
+cp .env.example .env.production
+# 本番用の値を設定
 
-### 環境変数
-
-#### サーバー側 (.env)
-
-```env
-# アプリケーション設定
-NODE_ENV=development
-PORT=5000
-
-# データベース設定
-DATABASE_URL=postgresql://user:password@localhost:5432/cashmax
-
-# 銀行API設定
-GMO_AOZORA_API_URL=https://api.gmo-aozora.com/v1
-GMO_AOZORA_CLIENT_ID=your_client_id
-GMO_AOZORA_CLIENT_SECRET=your_client_secret
-
-# JWT設定
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRES_IN=7d
-
-# その他のAPI
-OPENAI_API_KEY=your_openai_api_key
-```
-
-### 開発サーバーの起動
-
-```bash
-# 開発サーバー起動（フロントエンド + バックエンド）
-npm run dev
-
-# 個別起動
-npm run server:dev  # バックエンドのみ
-npm run client:dev  # フロントエンドのみ
-```
-
-## ビルド
-
-### プロダクションビルド
-
-```bash
-# 全体ビルド
+# 3. ビルド実行
 npm run build
 
-# 個別ビルド
-npm run server:build
-npm run client:build
+# 4. ビルド成果物の確認
+ls -la server/dist/
+ls -la client/dist/
 ```
 
-### ビルド成果物
+## 環境設定
 
-- サーバー: `server/dist/`
-- クライアント: `client/dist/`
+### 環境変数管理
 
-## デプロイメント
+```typescript
+// config/index.ts
+interface Config {
+  env: 'development' | 'staging' | 'production';
+  api: {
+    port: number;
+    baseUrl: string;
+  };
+  database: {
+    url: string;
+    ssl: boolean;
+  };
+  gmoAozora: {
+    clientId: string;
+    clientSecret: string;
+    apiUrl: string;
+  };
+  security: {
+    jwtSecret: string;
+    bcryptRounds: number;
+  };
+  monitoring: {
+    sentryDsn?: string;
+    logLevel: string;
+  };
+}
 
-### 手動デプロイ
+const config: Config = {
+  env: process.env.NODE_ENV as any || 'development',
+  api: {
+    port: parseInt(process.env.PORT || '5000'),
+    baseUrl: process.env.API_BASE_URL || 'http://localhost:5000'
+  },
+  database: {
+    url: process.env.DATABASE_URL || '',
+    ssl: process.env.NODE_ENV === 'production'
+  },
+  gmoAozora: {
+    clientId: process.env.GMO_AOZORA_CLIENT_ID || '',
+    clientSecret: process.env.GMO_AOZORA_CLIENT_SECRET || '',
+    apiUrl: process.env.GMO_AOZORA_API_URL || ''
+  },
+  security: {
+    jwtSecret: process.env.JWT_SECRET || '',
+    bcryptRounds: 10
+  },
+  monitoring: {
+    sentryDsn: process.env.SENTRY_DSN,
+    logLevel: process.env.LOG_LEVEL || 'info'
+  }
+};
+
+export default config;
+```
+
+### シークレット管理
 
 ```bash
-# 1. コードの最新化
-git pull origin main
+# AWS Secrets Manager (本番環境)
+aws secretsmanager create-secret \
+  --name baysgaia/production/api \
+  --secret-string '{
+    "GMO_AOZORA_CLIENT_SECRET": "xxx",
+    "DATABASE_PASSWORD": "xxx",
+    "JWT_SECRET": "xxx"
+  }'
 
-# 2. 依存関係の更新
-npm run install:all
+# Kubernetes Secrets
+kubectl create secret generic baysgaia-secrets \
+  --from-literal=gmo-aozora-secret=$GMO_AOZORA_CLIENT_SECRET \
+  --from-literal=db-password=$DATABASE_PASSWORD \
+  --from-literal=jwt-secret=$JWT_SECRET
+```
 
-# 3. ビルド
+## デプロイメント手順
+
+### Phase 2: 基本デプロイ（現在）
+
+```bash
+#!/bin/bash
+# deploy.sh
+
+# 1. ビルド
+echo "Building application..."
 npm run build
 
-# 4. サーバー起動
-npm run start
+# 2. テスト実行
+echo "Running tests..."
+npm test
+
+# 3. サーバーへの転送
+echo "Deploying to server..."
+rsync -avz --delete \
+  --exclude 'node_modules' \
+  --exclude '.env' \
+  ./server/dist/ user@server:/var/www/baysgaia-api/
+
+rsync -avz --delete \
+  ./client/dist/ user@server:/var/www/baysgaia-frontend/
+
+# 4. サービス再起動
+ssh user@server "sudo systemctl restart baysgaia-api"
+ssh user@server "sudo nginx -s reload"
+
+echo "Deployment completed!"
 ```
 
-### Docker デプロイ
-
-```dockerfile
-# Dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-
-# 依存関係のコピーとインストール
-COPY package*.json ./
-COPY server/package*.json ./server/
-COPY client/package*.json ./client/
-RUN npm run install:all
-
-# ソースコードのコピー
-COPY . .
-
-# ビルド
-RUN npm run build
-
-# ポート公開
-EXPOSE 5000
-
-# アプリケーション起動
-CMD ["npm", "run", "start"]
-```
-
-```bash
-# Dockerイメージのビルド
-docker build -t baysgaia-cash-max .
-
-# コンテナの起動
-docker run -p 5000:5000 --env-file .env baysgaia-cash-max
-```
-
-### CI/CDパイプライン (GitHub Actions)
+### Phase 3: CI/CDパイプライン（計画中）
 
 ```yaml
 # .github/workflows/deploy.yml
-name: Deploy
+name: Deploy to Production
 
 on:
   push:
     branches: [main]
-
+    
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        
-    - name: Install dependencies
-      run: npm run install:all
+      - uses: actions/checkout@v3
       
-    - name: Run tests
-      run: npm test
-      
-    - name: Build
-      run: npm run build
-      
-    - name: Deploy to production
-      env:
-        DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
-      run: |
-        # デプロイスクリプト実行
-        ./scripts/deploy.sh
+      - name: Build Docker images
+        run: |
+          docker build -t baysgaia/backend:${{ github.sha }} ./server
+          docker build -t baysgaia/frontend:${{ github.sha }} ./client
+          
+      - name: Push to registry
+        run: |
+          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          docker push baysgaia/backend:${{ github.sha }}
+          docker push baysgaia/frontend:${{ github.sha }}
+          
+      - name: Deploy to Kubernetes
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          echo "$KUBE_CONFIG" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl set image deployment/backend backend=baysgaia/backend:${{ github.sha }}
+          kubectl set image deployment/frontend frontend=baysgaia/frontend:${{ github.sha }}
+          kubectl rollout status deployment/backend
+          kubectl rollout status deployment/frontend
 ```
 
-## 本番環境設定
+## モニタリング
 
-### Nginx設定例
+### ヘルスチェック
+
+```typescript
+// server/src/routes/health.ts
+app.get('/health', async (req, res) => {
+  const health = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    checks: {
+      database: await checkDatabase(),
+      redis: await checkRedis(),
+      gmoApi: await checkGMOAPI()
+    }
+  };
+  
+  const isHealthy = Object.values(health.checks).every(check => check.status === 'ok');
+  res.status(isHealthy ? 200 : 503).json(health);
+});
+
+async function checkDatabase(): Promise<HealthCheck> {
+  try {
+    await db.query('SELECT 1');
+    return { status: 'ok', latency: 5 };
+  } catch (error) {
+    return { status: 'error', message: error.message };
+  }
+}
+```
+
+### ログ設定
+
+```typescript
+// server/src/utils/logger.ts
+import winston from 'winston';
+
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' })
+  ]
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple()
+  }));
+}
+
+export default logger;
+```
+
+## バックアップとリストア
+
+### 自動バックアップ
+
+```bash
+#!/bin/bash
+# backup.sh
+
+BACKUP_DIR="/backups/$(date +%Y%m%d)"
+mkdir -p $BACKUP_DIR
+
+# データベースバックアップ
+pg_dump $DATABASE_URL | gzip > $BACKUP_DIR/database.sql.gz
+
+# アプリケーションファイル
+tar -czf $BACKUP_DIR/application.tar.gz /var/www/baysgaia-*
+
+# S3へアップロード
+aws s3 sync $BACKUP_DIR s3://baysgaia-backups/$(date +%Y%m%d)/
+
+# 古いバックアップの削除（90日以上）
+find /backups -type d -mtime +90 -exec rm -rf {} \;
+```
+
+### リストア手順
+
+```bash
+#!/bin/bash
+# restore.sh
+
+RESTORE_DATE=$1
+BACKUP_DIR="/backups/$RESTORE_DATE"
+
+# S3からダウンロード
+aws s3 sync s3://baysgaia-backups/$RESTORE_DATE/ $BACKUP_DIR/
+
+# データベースリストア
+gunzip < $BACKUP_DIR/database.sql.gz | psql $DATABASE_URL
+
+# アプリケーションリストア
+tar -xzf $BACKUP_DIR/application.tar.gz -C /
+
+# サービス再起動
+systemctl restart baysgaia-api
+nginx -s reload
+```
+
+## ロールバック手順
+
+### Blue-Greenデプロイメント
 
 ```nginx
+# nginx.conf
+upstream backend {
+    server blue.api.baysgaia.com weight=100;
+    server green.api.baysgaia.com weight=0;
+}
+
+# ロールバック時は weight を入れ替え
+```
+
+### Kubernetesロールバック
+
+```bash
+# 直前のバージョンにロールバック
+kubectl rollout undo deployment/backend
+kubectl rollout undo deployment/frontend
+
+# 特定のバージョンにロールバック
+kubectl rollout undo deployment/backend --to-revision=3
+```
+
+## パフォーマンスチューニング
+
+### Node.js設定
+
+```javascript
+// pm2.config.js
+module.exports = {
+  apps: [{
+    name: 'baysgaia-api',
+    script: './dist/index.js',
+    instances: 'max',
+    exec_mode: 'cluster',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 5000
+    },
+    max_memory_restart: '1G',
+    error_file: './logs/err.log',
+    out_file: './logs/out.log',
+    log_file: './logs/combined.log',
+    time: true
+  }]
+};
+```
+
+### Nginx設定
+
+```nginx
+# /etc/nginx/sites-available/baysgaia
 server {
     listen 80;
-    server_name cash-max.baysgaia.com;
-    
-    # HTTPSへリダイレクト
+    server_name cashflow.baysgaia.com;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name cash-max.baysgaia.com;
+    server_name cashflow.baysgaia.com;
     
-    # SSL証明書
-    ssl_certificate /etc/letsencrypt/live/cash-max.baysgaia.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/cash-max.baysgaia.com/privkey.pem;
+    ssl_certificate /etc/ssl/certs/baysgaia.crt;
+    ssl_certificate_key /etc/ssl/private/baysgaia.key;
+    
+    # セキュリティヘッダー
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
     
     # 静的ファイル
     location / {
-        root /var/www/cash-max/client/dist;
+        root /var/www/baysgaia-frontend;
         try_files $uri $uri/ /index.html;
+        expires 1d;
+        add_header Cache-Control "public, immutable";
     }
     
     # API プロキシ
@@ -209,116 +482,81 @@ server {
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
 
-### PM2設定
+## 災害復旧計画
 
-```javascript
-// ecosystem.config.js
-module.exports = {
-  apps: [{
-    name: 'baysgaia-cash-max',
-    script: 'server/dist/index.js',
-    instances: 'max',
-    exec_mode: 'cluster',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 5000
-    },
-    error_file: './logs/err.log',
-    out_file: './logs/out.log',
-    log_file: './logs/combined.log',
-    time: true
-  }]
-};
-```
+### RPO/RTO目標
 
-```bash
-# PM2でアプリケーション起動
-pm2 start ecosystem.config.js
+- **RPO（復旧時点目標）**: 1時間
+- **RTO（復旧時間目標）**: 4時間
 
-# 自動起動設定
-pm2 startup
-pm2 save
-```
+### 復旧手順
 
-## 監視とログ
+1. **障害検知** (15分以内)
+   - 自動監視アラート
+   - CEO/CFO通知
 
-### ヘルスチェック
+2. **初期対応** (30分以内)
+   - 障害範囲特定
+   - 緊急対策チーム招集
 
-```bash
-# APIヘルスチェック
-curl https://cash-max.baysgaia.com/api/health
-```
+3. **復旧作業** (3時間以内)
+   - バックアップからのリストア
+   - サービス再開
 
-### ログ管理
+4. **事後対応** (24時間以内)
+   - 原因分析
+   - 再発防止策策定
 
-```bash
-# PM2ログ確認
-pm2 logs baysgaia-cash-max
+## チェックリスト
 
-# ログローテーション設定
-pm2 install pm2-logrotate
-pm2 set pm2-logrotate:max_size 100M
-pm2 set pm2-logrotate:retain 7
-```
+### デプロイ前チェック
+- [ ] 全テスト合格
+- [ ] セキュリティスキャン完了
+- [ ] 環境変数設定確認
+- [ ] バックアップ実行
+- [ ] ロールバック手順確認
 
-## トラブルシューティング
+### デプロイ後チェック
+- [ ] ヘルスチェック正常
+- [ ] 主要機能動作確認
+- [ ] パフォーマンス確認
+- [ ] ログ出力確認
+- [ ] アラート設定確認
 
-### よくある問題
+## 実装状況
 
-1. **ポート競合**
-   ```bash
-   # 使用中のポート確認
-   lsof -i :5000
-   # プロセスの停止
-   kill -9 <PID>
-   ```
+### Phase 2（現在）
+- ✅ 基本的なデプロイプロセス
+- ✅ 手動デプロイスクリプト
+- 🚀 Dockerコンテナ化
+- 🔄 基本的な監視
 
-2. **メモリ不足**
-   ```bash
-   # Node.jsメモリ上限の設定
-   NODE_OPTIONS="--max-old-space-size=4096" npm run start
-   ```
+### Phase 3（計画中）
+- ⏳ CI/CDパイプライン
+- ⏳ Kubernetesデプロイ
+- ⏳ 自動スケーリング
+- ⏳ Blue-Greenデプロイ
 
-3. **SSL証明書エラー**
-   ```bash
-   # Let's Encrypt証明書の更新
-   certbot renew
-   ```
+### Phase 4（将来拡張）
+- ⏳ マルチリージョン対応
+- ⏳ グローバルCDN
+- ⏳ エッジコンピューティング
 
-## バックアップとリストア
+## サポート情報
 
-### データベースバックアップ
+### ドキュメント
+- デプロイメントガイド: `/docs/technical/deployment.md`
+- セキュリティ仕様: `/docs/technical/security.md`
+- API仕様: `/docs/api/`
 
-```bash
-# バックアップスクリプト
-#!/bin/bash
-DATE=$(date +%Y%m%d_%H%M%S)
-pg_dump $DATABASE_URL > backup_$DATE.sql
-
-# S3へアップロード
-aws s3 cp backup_$DATE.sql s3://baysgaia-backups/cash-max/
-```
-
-### リストア手順
-
-```bash
-# 最新バックアップのダウンロード
-aws s3 cp s3://baysgaia-backups/cash-max/backup_latest.sql .
-
-# データベースリストア
-psql $DATABASE_URL < backup_latest.sql
-```
-
-## セキュリティチェックリスト
-
-- [ ] 環境変数が適切に設定されている
-- [ ] HTTPS が有効になっている
-- [ ] ファイアウォールが適切に設定されている
-- [ ] 不要なポートが閉じられている
-- [ ] 定期的なセキュリティアップデートが設定されている
-- [ ] バックアップが定期的に実行されている
-- [ ] 監視アラートが設定されている
+### 連絡先
+- **技術サポート**: support@baysgaia.com
+- **緊急時**: CEO直通（Critical Alert発生時）
+- **プロジェクトオーナー**: CEO 籾倉丸紀
