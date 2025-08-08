@@ -50,7 +50,7 @@ ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 
 # Web artifacts
-web/index.html
+# web/index.html is now tracked
 
 # Environment variables
 .env
