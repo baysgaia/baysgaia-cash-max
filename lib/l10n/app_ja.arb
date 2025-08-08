@@ -1,0 +1,26 @@
+{
+  "@@locale": "ja",
+  "appTitle": "BAYSGAiA財務改革システム",
+  "dashboard": "ダッシュボード",
+  "cashBalance": "現金残高",
+  "kpi": "KPI",
+  "cashFlow": "キャッシュフロー",
+  "subsidy": "補助金・融資",
+  "process": "プロセス自動化",
+  "risk": "リスク管理",
+  "project": "プロジェクト管理",
+  "settings": "設定",
+  "login": "ログイン",
+  "logout": "ログアウト",
+  "email": "メールアドレス",
+  "password": "パスワード",
+  "loginError": "ログインに失敗しました",
+  "welcomeMessage": "ようこそ、{name}さん",
+  "@welcomeMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
+}
