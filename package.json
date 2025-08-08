@@ -1,0 +1,22 @@
+{
+  "name": "baysgaia-cash-max",
+  "version": "1.0.0",
+  "description": "現金残高最大化プロジェクト - KPIダッシュボード",
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "cd server && npm run dev",
+    "client:dev": "cd client && npm run dev",
+    "build": "concurrently \"npm run server:build\" \"npm run client:build\"",
+    "server:build": "cd server && npm run build",
+    "client:build": "cd client && npm run build",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "lint": "cd server && npm run lint && cd ../client && npm run lint",
+    "typecheck": "cd server && npm run typecheck && cd ../client && npm run typecheck"
+  },
+  "keywords": ["cash-management", "dashboard", "kpi", "finance"],
+  "author": "Baysgaia Inc.",
+  "license": "PROPRIETARY",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
