@@ -8,8 +8,12 @@ interface LayoutProps {
 
 const navigation = [
   { name: 'ダッシュボード', href: '/', icon: '📊' },
+  { name: 'プロジェクト管理', href: '/project', icon: '📋' },
   { name: 'KPI詳細', href: '/kpi', icon: '📈' },
   { name: 'キャッシュフロー', href: '/cashflow', icon: '💰' },
+  { name: '補助金・融資', href: '/subsidy', icon: '🏦' },
+  { name: 'プロセス自動化', href: '/process', icon: '⚙️' },
+  { name: 'リスク管理', href: '/risk', icon: '🛡️' },
 ];
 
 export default function Layout({ children }: LayoutProps) {
