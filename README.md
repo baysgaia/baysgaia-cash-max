@@ -1,8 +1,8 @@
-# BAYSGAiA 現金残高最大化プロジェクト - 財務改革システム
+# BAYSGAiA 現金残高最大化プロジェクト - Flutter財務改革システム
 
 ## プロジェクト概要
 
-BAYSGAiA（株式会社ベイスガイア）の現金残高最大化を目指す包括的な財務改革プロジェクトシステムです。自社のAI技術力を活用し、財務プロセスの自動化と最適化を実現します。
+BAYSGAiA（株式会社ベイスガイア）の現金残高最大化を目指すFlutterベース財務改革システムです。モバイル・デスクトップ両対応で、AI技術力を活用した財務プロセスの自動化と最適化を実現します。
 
 ### プロジェクト背景
 - **企業名**: BAYSGAiA（株式会社ベイスガイア）
@@ -19,38 +19,6 @@ BAYSGAiA（株式会社ベイスガイア）の現金残高最大化を目指す
 4. **リスク管理**: 財務リスクの監視とアラート
 5. **プロジェクト管理**: 4フェーズ実行計画の進捗管理
 
-### 主要機能
-
-- **財務管理**
-  - リアルタイムKPIモニタリング（CCC、DSO、DPO）
-  - 現金残高・キャッシュフロー分析
-  - AI予測モデルによる資金予測（精度95%以上目標）
-  - ROI分析とダッシュボード
-
-- **銀行API連携**
-  - GMOあおぞらネット銀行API統合
-  - 自動入出金明細取得
-  - 振込処理の自動化
-  - リアルタイム残高確認
-
-- **補助金・融資管理**
-  - 申請状況トラッキング
-  - 必要書類管理
-  - 実績報告支援
-  - 資金調達シミュレーション
-
-- **業務プロセス自動化**
-  - 売掛金回収プロセス最適化
-  - 支払承認ワークフロー
-  - 自動レポート生成
-  - プロセス効率化分析
-
-- **リスク管理・ガバナンス**
-  - リスクモニタリング（3x3マトリクス）
-  - EWI（早期警戒指標）アラート
-  - コンプライアンスチェック
-  - 監査証跡管理
-
 ## プロジェクトOKR（目標と主要成果）
 
 | KR | 目標 | 期限 | 現状 | ステータス |
@@ -63,113 +31,126 @@ BAYSGAiA（株式会社ベイスガイア）の現金残高最大化を目指す
 
 ## 技術スタック
 
-### バックエンド
-- Node.js + TypeScript
-- Express.js
-- GMOあおぞらネット銀行API（OAuth2.0）
+### Flutter/Dart
+- **Flutter**: 3.10.0以上
+- **Dart**: 3.0.0以上
 
-### フロントエンド
-- React + TypeScript
-- Vite
-- TailwindCSS
-- Chart.js
-- @tanstack/react-query
+### 主要パッケージ
+- **状態管理**: Riverpod 2.4.9
+- **ルーティング**: GoRouter 12.1.3
+- **HTTP通信**: Dio 5.4.0
+- **データ保存**: Hive 2.2.3 + Flutter Secure Storage 9.0.0
+- **チャート**: FL Chart 0.65.0 + Syncfusion Charts 23.2.6
+- **国際化**: Intl 0.19.0
+
+### アーキテクチャ
+- **パターン**: Clean Architecture + MVVM
+- **状態管理**: Riverpod Provider Pattern
+- **データレイヤー**: Repository Pattern + API Service
+- **UIレイヤー**: Responsive Design (Mobile/Tablet/Desktop)
 
 ## セットアップ
 
 ### 必要要件
-- Node.js 18以上
-- npm または yarn
-- GMOあおぞらネット銀行APIアカウント（本番環境移行時）
+- Flutter 3.10.0以上
+- Dart 3.0.0以上
+- Android Studio / VS Code
+- Xcode（iOS開発時）
 
 ### インストール
 
 ```bash
-# 依存関係のインストール
-npm run install:all
+# リポジトリクローン
+git clone git@github.com:baysgaia/baysgaia-cash-max.git
+cd baysgaia-cash-max
 
-# 環境変数の設定（開発環境）
-cp server/.env.example server/.env
-# .envファイルを編集してAPI認証情報を設定
+# Flutter依存関係取得
+flutter pub get
 
-# GMOあおぞらネット銀行API設定（本番環境では必須）
-# CLIENT_ID, CLIENT_SECRET, REDIRECT_URI を設定
+# コード生成（必要な場合）
+flutter packages pub run build_runner build
+
+# デバッグビルド実行
+flutter run
 ```
 
-### 開発サーバーの起動
+### 環境設定
 
 ```bash
-# バックエンドとフロントエンドを同時起動
-npm run dev
+# 環境変数ファイル作成（本番環境では必要な設定を追加）
+# lib/core/config/app_config.dart で設定を管理
 ```
 
-- フロントエンド: http://localhost:3000
-- バックエンド: http://localhost:5000
-
-### ビルド
+## 開発・ビルドコマンド
 
 ```bash
-npm run build
-```
+# 開発サーバー起動（ホットリロード）
+flutter run
 
-### リント・型チェック
+# デバッグビルド
+flutter build apk --debug    # Android
+flutter build ios --debug    # iOS
 
-```bash
-npm run lint
-npm run typecheck
+# リリースビルド
+flutter build apk --release  # Android
+flutter build ios --release  # iOS
+flutter build web            # Web
+flutter build macos          # macOS
+flutter build windows        # Windows
+
+# テスト実行
+flutter test
+
+# コード解析
+flutter analyze
+
+# 依存関係更新
+flutter pub upgrade
 ```
 
 ## プロジェクト構造
 
 ```
-baysgaia-cash-max/
-├── server/                    # バックエンドAPI
-│   ├── src/
-│   │   ├── controllers/       # APIコントローラー
-│   │   │   ├── kpi/          # KPI関連
-│   │   │   ├── cashflow/     # キャッシュフロー
-│   │   │   ├── subsidy/      # 補助金・融資管理
-│   │   │   ├── process/      # プロセス自動化
-│   │   │   └── risk/         # リスク管理
-│   │   ├── services/          # ビジネスロジック
-│   │   │   ├── bank/         # 銀行API連携
-│   │   │   ├── ai/           # AI予測・分析
-│   │   │   ├── workflow/     # ワークフロー管理
-│   │   │   └── notification/ # 通知・アラート
-│   │   ├── models/           # データモデル
-│   │   ├── routes/           # APIルーティング
-│   │   └── utils/            # ユーティリティ
-│   └── package.json
-├── client/                    # フロントエンド
-│   ├── src/
-│   │   ├── pages/            # ページコンポーネント
-│   │   │   ├── Dashboard/    # ダッシュボード
-│   │   │   ├── Subsidy/      # 補助金管理
-│   │   │   ├── Process/      # プロセス管理
-│   │   │   ├── Risk/         # リスク管理
-│   │   │   └── Project/      # プロジェクト管理
-│   │   ├── components/       # UIコンポーネント
-│   │   ├── api/              # API通信
-│   │   └── App.tsx
-│   └── package.json
-├── docs/                      # ドキュメント
-│   ├── api/                  # API仕様書
-│   ├── user/                 # ユーザーマニュアル
-│   └── technical/            # 技術文書
-└── package.json              # ルートパッケージ
+lib/
+├── app/                          # アプリケーション設定
+│   ├── app.dart                  # メインアプリウィジェット
+│   └── router/                   # ルーティング設定
+│       └── app_router.dart
+├── core/                         # コア機能
+│   ├── constants/                # 定数定義
+│   ├── theme/                    # テーマ設定
+│   ├── services/                 # 共通サービス
+│   ├── utils/                    # ユーティリティ
+│   └── config/                   # 設定管理
+├── features/                     # 機能別実装
+│   ├── auth/                     # 認証機能
+│   ├── dashboard/                # ダッシュボード
+│   ├── kpi/                      # KPI管理
+│   ├── cashflow/                 # キャッシュフロー分析
+│   ├── subsidy/                  # 補助金・融資管理
+│   ├── process/                  # プロセス自動化
+│   ├── risk/                     # リスク管理
+│   ├── project/                  # プロジェクト管理
+│   └── settings/                 # 設定画面
+├── shared/                       # 共通ウィジェット・ユーティリティ
+│   ├── widgets/                  # 共通ウィジェット
+│   ├── models/                   # データモデル
+│   └── providers/                # 共通プロバイダー
+└── main.dart                     # エントリーポイント
 ```
 
-## GMOあおぞらネット銀行API連携
+### 各機能の実装状況
 
-### 利用API
-- 残高照会API
-- 入出金明細照会API
-- 振込状況照会API
-
-### セキュリティ
-- OAuth2.0認証
-- HTTPS通信（TLS1.2以上）
-- アクセストークンの定期更新
+| 機能 | 画面実装 | API連携 | テスト | 状態 |
+|------|----------|---------|--------|------|
+| 認証システム | ✅ | 🚧 | 🔄 | Phase 2 |
+| ダッシュボード | ✅ | ✅ | ✅ | Phase 2 |
+| KPI詳細分析 | ✅ | ✅ | 🚧 | Phase 2 |
+| キャッシュフロー分析 | ✅ | 🚧 | 🔄 | Phase 2 |
+| 補助金・融資管理 | ✅ | 🚧 | 🔄 | Phase 2 |
+| プロセス自動化 | 🚧 | 🔄 | ❌ | Phase 3 |
+| リスク管理 | 🚧 | 🔄 | ❌ | Phase 3 |
+| プロジェクト管理 | ✅ | ✅ | 🚧 | Phase 2 |
 
 ## プロジェクトフェーズ
 
@@ -179,32 +160,62 @@ baysgaia-cash-max/
 - 緊急資金調達計画策定（日本政策金融公庫融資）
 
 ### Phase 2: システム導入（Week 4-7）🔄 実施中
-- デジタルツール選定と導入
+- Flutterアプリケーション開発
+- 基本ダッシュボード・KPI管理機能実装
 - IT導入補助金申請（第5次：9月22日締切）
-- 基本ダッシュボード構築
 - 売掛金管理パイロット実装
 
 #### Phase 2 重点実装項目
-1. GMOあおぞらネット銀行API本番環境準備
-2. 基本セキュリティ機能実装
-3. IT導入補助金申請支援機能強化
-4. 売掛金管理自動化パイロット
+1. ダッシュボード画面の完成
+2. KPI詳細分析機能
+3. リアルタイムデータ表示
+4. アラート通知システム
 
 ### Phase 3: プロセス変革（Week 8-11）📅 予定
 - 業務プロセス最適化（70%自動化目標）
-- リアルタイムモニタリング（WebSocket）
+- リアルタイムモニタリング機能
 - AI予測モデル統合
 - 異常検知システム実装
 
 ### Phase 4: 最適化＆拡張（Week 12-16）📅 予定
 - 高度な分析機能（What-if分析、シナリオプランニング）
 - 外部データ統合（市場データ、経済指標）
-- モバイル対応強化
+- マルチプラットフォーム対応強化
 - API提供準備
 
-## ガバナンス・会議体
+## 主要機能
 
-### CEO週次統合リスクレビュー
+### 財務ダッシュボード
+- リアルタイムKPIモニタリング（CCC、DSO、DPO）
+- 現金残高・キャッシュフロー推移チャート
+- AI予測による資金予測（精度95%以上目標）
+- ROI分析とパフォーマンス指標
+
+### GMOあおぞらネット銀行API連携
+- OAuth2.0認証による安全な接続
+- 自動入出金明細取得
+- リアルタイム残高確認
+- 取引履歴の自動同期
+
+### 補助金・融資管理
+- 申請状況追跡とタスク管理
+- 必要書類の管理・提出支援
+- 実績報告の自動生成
+- 資金調達シミュレーション
+
+### プロセス自動化
+- 売掛金回収プロセス最適化
+- 支払承認ワークフロー
+- 自動レポート生成
+- 効率化分析とROI測定
+
+### リスク管理
+- リスクモニタリング（3x3マトリクス）
+- EWI（早期警戒指標）アラート
+- コンプライアンスチェック
+- 監査証跡管理
+
+## CEO週次統合リスクレビュー
 - **実施日**: 毎週土曜日 8:00
 - **参加者**: CEO（籾倉丸紀）、相談役
 - **アジェンダ**: 
@@ -221,29 +232,6 @@ baysgaia-cash-max/
   - 補助金・融資進捗報告
   - 投資対効果（ROI）評価
   - 次月重点施策決定
-
-## リスク管理
-
-### 主要リスクと対策
-- **技術リスク**: API障害 → フェイルオーバー構成
-- **財務リスク**: 補助金不採択 → 代替資金源の確保
-- **運用リスク**: 誤操作 → 多重承認制とトレーニング
-- **コンプライアンス**: 電子帳簿保存法 → 定期内部監査
-
-## 関連ドキュメント
-
-### プロジェクトドキュメント（`_ProjectNotes/`）
-- **プロジェクト全体像**: `Outline_20250807-baysgaia-cash-max.md`
-- **財務指標定義**: `Financial_Metrics_KPIs.md`
-- **実装ロードマップ**: `Implementation_Roadmap.md`
-- **ダッシュボード仕様**: `ROI_Dashboard_Specifications.md`
-- **補助金・融資計画**: `Government_Support_Plan.md`
-- **リスク管理**: `Risk_Management_Governance.md`
-
-### 技術ドキュメント（`docs/`）
-- **API仕様**: `/docs/api/`
-- **ユーザーマニュアル**: `/docs/user/`
-- **技術仕様**: `/docs/technical/`
 
 ## 資金調達目標と申請スケジュール
 
@@ -278,12 +266,61 @@ baysgaia-cash-max/
   - 監査ログ完全記録
   - 24時間365日監視体制
 
+### データプライバシー
+- 最小限の個人情報収集
+- 暗号化による保護
+- アクセス権限管理
+- GDPR準拠設計
+
+## テスト戦略
+
+```bash
+# 単体テスト
+flutter test
+
+# 統合テスト
+flutter test integration_test/
+
+# ウィジェットテスト
+flutter test test/widgets/
+
+# パフォーマンステスト
+flutter driver --target=test_driver/perf_test.dart
+```
+
+## CI/CD設定
+
+### GitHub Actions（予定）
+- 自動ビルド・テスト実行
+- コード品質チェック
+- セキュリティスキャン
+- 自動デプロイ
+
+## 関連ドキュメント
+
+### プロジェクトドキュメント（`_ProjectNotes/`）
+- **プロジェクト全体像**: `Outline_20250807-baysgaia-cash-max.md`
+- **財務指標定義**: `Financial_Metrics_KPIs.md`
+- **実装ロードマップ**: `Implementation_Roadmap.md`
+- **ダッシュボード仕様**: `ROI_Dashboard_Specifications.md`
+- **補助金・融資計画**: `Government_Support_Plan.md`
+- **リスク管理**: `Risk_Management_Governance.md`
+
+### 技術ドキュメント（`docs/`）
+- **API仕様**: `/docs/api/`
+- **アーキテクチャ**: `/docs/technical/`
+- **ユーザーガイド**: `/docs/user/`
+
 ## サポート・問い合わせ
 
 - **プロジェクトオーナー**: 代表取締役CEO 籾倉丸紀
 - **技術サポート**: [support@baysgaia.com](mailto:support@baysgaia.com)
-- **緊急連絡先**: CEO直通（Critical Alertレベル発生時）
+- **緊急連絡先**: CEO直通（Critical Alert発生時）
 
 ## ライセンス
 
 Copyright (c) 2025 BAYSGAiA Inc. All rights reserved.
+
+---
+
+> **Phase 2 重要メモ**: 現在システム導入フェーズ実行中。GMOあおぞらネット銀行API本番接続準備、IT導入補助金申請（9/22締切）、基本ダッシュボード完成が最優先事項。
