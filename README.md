@@ -182,4 +182,4 @@ baysgaia-cash-max/
 
 ## ライセンス
 
-Copyright (c) 2025 ベイスガイア Inc. All rights reserved.
+Copyright (c) 2025 BAYSGAiA Inc. All rights reserved.
